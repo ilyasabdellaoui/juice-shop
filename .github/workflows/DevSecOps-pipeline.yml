@@ -33,8 +33,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Set up CodeQL
-        uses: github/codeql-action/setup-codeql@v2
+      - name: Install CodeQL
+        run: |
+          curl -sSL https://github.com/github/codeql-action/releases/download/v2.0.1/codeql-action-linux64.tar.gz | tar -xz -C /usr/local/bin
+
       - name: Run CodeQL Analysis
         uses: github/codeql-action/analyze@v2
 
