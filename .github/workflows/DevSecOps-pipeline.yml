@@ -127,9 +127,9 @@ jobs:
         with:
           python-version: '3.x'
 
-      - name: Install DefectDojo CLI
+      - name: Install DefectDojo API Client
         run: |
-          pip install defectdojo_api
+          pip install defectdojo_api-v2
 
       - name: Create DefectDojo Engagement and Upload Scans
         env:
@@ -140,37 +140,50 @@ jobs:
           export TIMESTAMP=$(date +%Y%m%d_%H%M%S)
           python3 <<EOF
           import os
-          from defectdojo_api import DefectDojoAPI
+          from defectdojo_api_v2.api import DefectDojoAPI
           from datetime import datetime
+          import requests
+          from urllib3.exceptions import InsecureRequestWarning
+          requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
           # Initialize DefectDojo API client
           dd = DefectDojoAPI(
               os.environ['DEFECTDOJO_URL'],
               os.environ['DEFECTDOJO_API_KEY'],
-              debug=True
+              debug=True,
+              verify_ssl=False
           )
 
           # Get product ID from environment
           product_id = int(os.environ['DEFECTDOJO_PRODUCT_ID'])
           
-          # Create engagement
-          engagement_data = {
-              'product': product_id,
-              'name': f'Automated Scan {datetime.now().strftime("%Y%m%d_%H%M%S")}',
-              'target_start': datetime.now().strftime('%Y-%m-%d'),
-              'target_end': datetime.now().strftime('%Y-%m-%d'),
-              'status': 'In Progress'
-          }
-          
           try:
-              engagement = dd.create_engagement(**engagement_data)
+              # Create engagement
+              engagement_data = {
+                  'product': product_id,
+                  'name': f'Automated Scan {datetime.now().strftime("%Y%m%d_%H%M%S")}',
+                  'target_start': datetime.now().strftime('%Y-%m-%d'),
+                  'target_end': datetime.now().strftime('%Y-%m-%d'),
+                  'status': 'In Progress',
+                  'deduplication_on_engagement': True
+              }
+              
+              # Create engagement using the API
+              engagement = dd.create('engagements', data=engagement_data)
               print(f"Created engagement with ID: {engagement['id']}")
               
-              # Upload scan results with error handling
-              def safe_upload(file_path, scan_type):
+              # Function to upload scan results
+              def safe_upload(file_path, scan_type, scan_type_id):
                   try:
                       with open(file_path, 'rb') as f:
-                          result = dd.upload_scan(engagement['id'], scan_type, f)
+                          files = {'file': f}
+                          data = {
+                              'engagement': engagement['id'],
+                              'scan_type': scan_type,
+                              'scan_date': datetime.now().strftime('%Y-%m-%d'),
+                              'minimum_severity': 'Info'
+                          }
+                          result = dd.upload_scan(data, files)
                           print(f"Successfully uploaded {scan_type}")
                           return result
                   except FileNotFoundError:
@@ -179,13 +192,14 @@ jobs:
                       print(f"Error uploading {scan_type}: {str(e)}")
                   return None
 
-              # Upload each scan result
-              safe_upload('scan-results/codeql-results/javascript.sarif', 'SARIF')
-              safe_upload('scan-results/snyk-results.json', 'Snyk Scan')
-              safe_upload('scan-results/zap-results.json', 'ZAP Scan')
+              # Upload scan results
+              safe_upload('scan-results/codeql-results/javascript.sarif', 'SARIF', 1)
+              safe_upload('scan-results/snyk-results.json', 'Snyk Scan', 2)
+              safe_upload('scan-results/zap-results.json', 'ZAP Scan', 3)
 
-              # Close engagement
-              dd.close_engagement(engagement['id'])
+              # Close the engagement
+              engagement_data['status'] = 'Completed'
+              dd.update('engagements', engagement['id'], data=engagement_data)
               print("Successfully closed engagement")
               
           except Exception as e:
