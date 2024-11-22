@@ -135,7 +135,7 @@ jobs:
         env:
           DEFECTDOJO_URL: ${{ secrets.DEFECTDOJO_URL }}
           DEFECTDOJO_API_KEY: ${{ secrets.DEFECTDOJO_API_KEY }}
-          DEFECTDOJO_PRODUCT_ID: ${{ secrets.[DEFECTDOJO_PRODUCT_ID] }}
+          DEFECTDOJO_PRODUCT_ID: ${{ secrets.DEFECTDOJO_PRODUCT_ID }}
         run: |
           export TIMESTAMP=$(date +%Y%m%d_%H%M%S)
           python3 <<EOF
