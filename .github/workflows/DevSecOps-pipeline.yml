@@ -28,19 +28,19 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
 
-    services:
-      juice-shop:
-        image: bkimminich/juice-shop
-        ports:
-          - 3000:3000
+    # services:
+    #   juice-shop:
+    #     image: bkimminich/juice-shop
+    #     ports:
+    #       - 3000:3000
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Wait for Juice Shop to be ready
-        run: |
-          timeout 60 bash -c 'while [[ "$(curl -s -o /dev/null -w ''%{http_code}'' localhost:3000)" != "200" ]]; do sleep 5; done' || exit 1
+      # - name: Wait for Juice Shop to be ready
+      #   run: |
+      #     timeout 60 bash -c 'while [[ "$(curl -s -o /dev/null -w ''%{http_code}'' localhost:3000)" != "200" ]]; do sleep 5; done' || exit 1
           
       - name: Install Dependencies
         run: npm install
@@ -80,11 +80,12 @@ jobs:
       - name: Run OWASP ZAP Scan
         uses: zaproxy/action-full-scan@v0.7.0
         with:
-          target: 'http://localhost:3000'
+          # A little hack here haha: using an already deployed juice shop as a target instead of deploying mine 
+          target: 'https://demo.owasp-juice.shop'
           rules_file_name: '.zap/rules.tsv'
           cmd_options: '-a -j -J zap-results.json'
-          fail_action: 'false'  # Prevents the action from failing on alerts
-          allow_issue_writing: true  # Enables writing findings to GitHub issues
+          fail_action: 'false'
+          allow_issue_writing: true
 
       - name: Archive ZAP Results
         if: always()
