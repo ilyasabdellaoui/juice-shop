@@ -129,7 +129,7 @@ jobs:
 
       - name: Install DefectDojo API Client
         run: |
-          pip install defectdojo_api-v2
+          pip install defectdojo_api
 
       - name: Create DefectDojo Engagement and Upload Scans
         env:
