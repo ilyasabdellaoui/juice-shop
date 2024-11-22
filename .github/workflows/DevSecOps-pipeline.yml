@@ -90,14 +90,6 @@ jobs:
       # - name: Run Snyk for Dependency Scanning
       #   run: snyk test --all-projects
 
-      # - name: Set up OWASP ZAP
-      #   uses: zaproxy/action-full-scan@v0.7.0
-      #   env:
-      #     ZAP_API_KEY: ${{ secrets.ZAP_API_KEY }}
-      # - name: Run OWASP ZAP DAST scan
-      #   run: |
-      #     docker run --rm -v $(pwd):/zap/wrk:rw -t owasp/zap2docker-stable zap-full-scan.py -t http://localhost:3000
-
   # vulnerability_management:
   #   name: Manage & Visualize Vulnerabilities
   #   runs-on: ubuntu-latest
@@ -118,10 +110,69 @@ jobs:
   #           -Dsonar.host.url=https://sonarcloud.io \
   #           -Dsonar.login=${{ secrets.SONARQUBE_TOKEN }}
 
+  vulnerability_management:
+    name: Vulnerability Management
+    needs: security_testing
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download scan results
+        uses: actions/download-artifact@v4
+        with:
+          name: security-scan-results
+          path: scan-results
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install DefectDojo CLI
+        run: |
+          pip install defectdojo_api
+
+      - name: Create DefectDojo Engagement and Upload Scans
+        env:
+          DEFECTDOJO_URL: ${{ secrets.DEFECTDOJO_URL }}
+          DEFECTDOJO_API_KEY: ${{ secrets.DEFECTDOJO_API_KEY }}
+        run: |
+          export TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+          python3 <<EOF
+          from defectdojo_api import DefectDojoAPI
+
+          # Initialize DefectDojo API client
+          dd = DefectDojoAPI('${DEFECTDOJO_URL}', '${DEFECTDOJO_API_KEY}', debug=True)
+
+          # Create engagement
+          engagement_data = {
+              'product': ${DEFECTDOJO_PRODUCT_ID},
+              'name': f'Automated Scan ${TIMESTAMP}',
+              'target_start': '$(date -I)',
+              'target_end': '$(date -I)',
+              'status': 'In Progress'
+          }
+          engagement = dd.create_engagement(**engagement_data)
+
+          # Upload CodeQL results
+          with open('scan-results/codeql-results/javascript.sarif', 'rb') as f:
+              dd.upload_scan(engagement['id'], 'SARIF', f)
+
+          # Upload Snyk results
+          with open('scan-results/snyk-results.json', 'rb') as f:
+              dd.upload_scan(engagement['id'], 'Snyk Scan', f)
+
+          # Upload ZAP results
+          with open('scan-results/zap-results.json', 'rb') as f:
+              dd.upload_scan(engagement['id'], 'ZAP Scan', f)
+
+          # Close engagement
+          dd.close_engagement(engagement['id'])
+          EOF
+
   redeploy:
     name: Redeploy Juice Shop
     runs-on: ubuntu-latest
-    needs: security_testing
+    needs: vulnerability_management
 
     steps:
       - name: Pull Latest Juice Shop Docker Image
