@@ -55,8 +55,8 @@ jobs:
           output: "codeql-results"
 
       # SCA: Snyk Vulnerability Scanning
-      - name: Run Snyk Scan
-        uses: snyk/actions/node@v2
+      - name: Run Snyk to check for vulnerabilities
+        uses: snyk/actions/node@master
         with:
           command: test --json > snyk-results.json
         env:
