@@ -58,6 +58,19 @@ jobs:
         with:
           command: monitor
 
+      # Etape 4: Analyse DAST
+      - name: Start Juice Shop
+        run: |
+          docker run -d -p 3000:3000 bkimminich/juice-shop
+          sleep 30
+
+      - name: ZAP Scan
+        uses: zaproxy/action-full-scan@v0.7.0
+        with:
+          target: 'http://localhost:3000'
+          rules_file_name: '.zap/rules.tsv'
+          cmd_options: '-a'
+
       # - name: Install Snyk CLI
       #   run: npm install -g snyk
       # - name: Run Snyk for Dependency Scanning
@@ -94,7 +107,7 @@ jobs:
   redeploy:
     name: Redeploy OWASP Juice Shop
     runs-on: ubuntu-latest
-    needs: build
+    needs: security_testing
     if: github.event_name == 'push'
 
     steps:
