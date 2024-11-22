@@ -135,38 +135,62 @@ jobs:
         env:
           DEFECTDOJO_URL: ${{ secrets.DEFECTDOJO_URL }}
           DEFECTDOJO_API_KEY: ${{ secrets.DEFECTDOJO_API_KEY }}
+          DEFECTDOJO_PRODUCT_ID: ${{ secrets.[DEFECTDOJO_PRODUCT_ID] }}
         run: |
           export TIMESTAMP=$(date +%Y%m%d_%H%M%S)
           python3 <<EOF
+          import os
           from defectdojo_api import DefectDojoAPI
+          from datetime import datetime
 
           # Initialize DefectDojo API client
-          dd = DefectDojoAPI('${DEFECTDOJO_URL}', '${DEFECTDOJO_API_KEY}', debug=True)
+          dd = DefectDojoAPI(
+              os.environ['DEFECTDOJO_URL'],
+              os.environ['DEFECTDOJO_API_KEY'],
+              debug=True
+          )
 
+          # Get product ID from environment
+          product_id = int(os.environ['DEFECTDOJO_PRODUCT_ID'])
+          
           # Create engagement
           engagement_data = {
-              'product': ${DEFECTDOJO_PRODUCT_ID},
-              'name': f'Automated Scan ${TIMESTAMP}',
-              'target_start': '$(date -I)',
-              'target_end': '$(date -I)',
+              'product': product_id,
+              'name': f'Automated Scan {datetime.now().strftime("%Y%m%d_%H%M%S")}',
+              'target_start': datetime.now().strftime('%Y-%m-%d'),
+              'target_end': datetime.now().strftime('%Y-%m-%d'),
               'status': 'In Progress'
           }
-          engagement = dd.create_engagement(**engagement_data)
+          
+          try:
+              engagement = dd.create_engagement(**engagement_data)
+              print(f"Created engagement with ID: {engagement['id']}")
+              
+              # Upload scan results with error handling
+              def safe_upload(file_path, scan_type):
+                  try:
+                      with open(file_path, 'rb') as f:
+                          result = dd.upload_scan(engagement['id'], scan_type, f)
+                          print(f"Successfully uploaded {scan_type}")
+                          return result
+                  except FileNotFoundError:
+                      print(f"Warning: File not found: {file_path}")
+                  except Exception as e:
+                      print(f"Error uploading {scan_type}: {str(e)}")
+                  return None
 
-          # Upload scan results with error handling
-          def safe_upload(file_path, scan_type):
-              try:
-                  with open(file_path, 'rb') as f:
-                      dd.upload_scan(engagement['id'], scan_type, f)
-              except Exception as e:
-                  print(f"Error uploading {scan_type}: {str(e)}")
+              # Upload each scan result
+              safe_upload('scan-results/codeql-results/javascript.sarif', 'SARIF')
+              safe_upload('scan-results/snyk-results.json', 'Snyk Scan')
+              safe_upload('scan-results/zap-results.json', 'ZAP Scan')
 
-          safe_upload('scan-results/codeql-results/javascript.sarif', 'SARIF')
-          safe_upload('scan-results/snyk-results.json', 'Snyk Scan')
-          safe_upload('scan-results/zap-results.json', 'ZAP Scan')
-
-          # Close engagement
-          dd.close_engagement(engagement['id'])
+              # Close engagement
+              dd.close_engagement(engagement['id'])
+              print("Successfully closed engagement")
+              
+          except Exception as e:
+              print(f"Error in DefectDojo integration: {str(e)}")
+              exit(1)
           EOF
 
   redeploy:
