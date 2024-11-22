@@ -146,12 +146,13 @@ jobs:
           from urllib3.exceptions import InsecureRequestWarning
           requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
+          user = 'admin'
           # Initialize DefectDojo API client
           dd = defectdojo.DefectDojoAPI(
               os.environ['DEFECTDOJO_URL'],
               os.environ['DEFECTDOJO_API_KEY'],
-              debug=True,
-              verify_ssl=False
+              user, 
+              debug=False
           )
 
           # Get product ID from environment
