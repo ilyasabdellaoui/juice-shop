@@ -63,7 +63,6 @@ jobs:
         uses: snyk/actions/setup@master
         with:
           command: snyk test --json > snyk-results.json
-          json: true
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
@@ -78,7 +77,7 @@ jobs:
         with:
           target: 'http://localhost:3000'
           rules_file_name: '.zap/rules.tsv'
-          cmd_options: '-a -j -J zap-results.json --verbose'
+          cmd_options: '-a -j -J zap-results.json'
 
       # Upload Scan Results
       - name: Upload Scan Results
@@ -86,7 +85,6 @@ jobs:
         with:
           name: security-scan-results
           path: |
-            codeql-results
             snyk-results.json
             zap-results.json
 
