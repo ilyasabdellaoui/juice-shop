@@ -86,7 +86,6 @@ jobs:
         with: 
           name: snyk-scan-results
           path: snyk.sarif
-
           
       # DAST: OWASP ZAP Scan
       - name: Run OWASP ZAP Scan
@@ -120,118 +119,54 @@ jobs:
     if: always()
 
     steps:
-      - name: Create scan results directory
-        run: mkdir -p scan-results
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      # Download CodeQL Results
-      - name: Download CodeQL Results
+      # Download scan results
+      - name: Download Scan Results
         uses: actions/download-artifact@v4
         with:
-          name: codeql-scan-results
+          pattern: "*-scan-results"
           path: scan-results
+          merge-multiple: true
 
-      # Download Snyk Results
-      - name: Download Snyk Results
-        uses: actions/download-artifact@v4
+      # SonarCloud Analysis
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
-          name: snyk-scan-results
-          path: scan-results
-
-      # # Download ZAP Results
-      # - name: Download ZAP Results
-      #   uses: actions/download-artifact@v4
-      #   with:
-      #     name: zap-scan-results
-      #     path: scan-results
-
-      # List Downloaded Files
-      - name: List Downloaded Files
-        run: |
-          echo "Contents of scan-results directory:"
-          ls -la scan-results/ || echo "No files found"
-
-      # Import CodeQL Results
-      - name: Import CodeQL Results (JavaScript)
-        if: hashFiles('scan-results/javascript.sarif') != ''
-        continue-on-error: true
-        uses: ivanamat/defectdojo-import-scan@v1
+          args: >
+            -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }}
+            -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }}
+            -Dsonar.sources=.
+            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
+            -Dsonar.externalIssuesReportPaths=scan-results/snyk.sarif,scan-results/javascript.sarif
+            
+      # Check Quality Gate
+      - name: Check Quality Gate
+        id: sonarqube-quality-gate-check
+        uses: sonarsource/sonarqube-quality-gate-action@master
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        timeout-minutes: 5
         with:
-          token: ${{ secrets.DEFECTDOJO_API_KEY }}
-          defectdojo_url: ${{ secrets.DEFECTDOJO_URL }}
-          file: scan-results/javascript.sarif
-          scan_type: SARIF
-          engagement: ${{ secrets.DEFECTDOJO_ENGAGEMENT_ID }}
-          close_old_findings: true
-
-      - name: Import CodeQL Results (TypeScript)
-        if: hashFiles('scan-results/typescript.sarif') != ''
-        continue-on-error: true
-        uses: ivanamat/defectdojo-import-scan@v1
-        with:
-          token: ${{ secrets.DEFECTDOJO_API_KEY }}
-          defectdojo_url: ${{ secrets.DEFECTDOJO_URL }}
-          file: scan-results/typescript.sarif
-          scan_type: SARIF
-          engagement: ${{ secrets.DEFECTDOJO_ENGAGEMENT_ID }}
-          close_old_findings: true
+          scanMetadataReportFile: .scannerwork/report-task.txt
           
-      # Import Snyk Results
-      - name: Import Snyk Results
-        if: hashFiles('scan-results/snyk.sarif') != ''
-        continue-on-error: true
-        uses: ivanamat/defectdojo-import-scan@v1
-        with:
-          token: ${{ secrets.DEFECTDOJO_API_KEY }}
-          defectdojo_url: ${{ secrets.DEFECTDOJO_URL }}
-          file: scan-results/snyk.sarif
-          scan_type: Snyk Scan
-          engagement: ${{ secrets.DEFECTDOJO_ENGAGEMENT_ID }}
-          close_old_findings: true
-          
-      # # Import ZAP Results
-      # - name: Import ZAP Results
-      #   if: hashFiles('scan-results/zap-results.json') != ''
-      #   continue-on-error: true
-      #   uses: ivanamat/defectdojo-import-scan@v1
-      #   with:
-      #     token: ${{ secrets.DEFECTDOJO_API_KEY }}
-      #     defectdojo_url: ${{ secrets.DEFECTDOJO_URL }}
-      #     file: scan-results/zap-results.json
-      #     scan_type: ZAP Scan
-      #     engagement: ${{ secrets.DEFECTDOJO_ENGAGEMENT_ID }}
-      #     close_old_findings: true
-
-      # Check Import Results
-      - name: Check Import Results
+      # List Final Files and Summary
+      - name: Scan Results Summary
         if: always()
         run: |
           echo "Scan Results Summary:"
           echo "===================="
+          echo "📊 Results uploaded to SonarCloud"
+          echo "🔍 Quality Gate Status: ${{ steps.sonarqube-quality-gate-check.outputs.quality-gate-status }}"
           
-          if [[ -f scan-results/*.sarif ]]; then
-            echo "✅ CodeQL results file found and processed"
-          else
-            echo "⚠️ CodeQL results file not found"
-          fi
-          
-          if [[ -f scan-results/snyk.sarif ]]; then
-            echo "✅ Snyk results file found and processed"
-          else
-            echo "⚠️ Snyk results file not found"
-          fi
-          
-          if [[ -f scan-results/zap-results.json ]]; then
-            echo "✅ ZAP results file found and processed"
-          else
-            echo "⚠️ ZAP results file not found"
-          fi
-
-      # List Final Files
-      - name: List Final Scan Results
-        if: always()
-        run: |
-          echo "Final contents of scan-results directory:"
-          ls -la scan-results/        
+          echo "Processed Scan Files:"
+          ls -la scan-results/
   
   redeploy:
     name: Redeploy Juice Shop
