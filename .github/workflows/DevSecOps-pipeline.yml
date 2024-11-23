@@ -151,14 +151,26 @@ jobs:
           ls -la scan-results/ || echo "No files found"
 
       # Import CodeQL Results
-      - name: Import CodeQL Results
-        if: hashFiles('scan-results/*.sarif') != ''
+      - name: Import CodeQL Results (JavaScript)
+        if: hashFiles('scan-results/javascript.sarif') != ''
         continue-on-error: true
         uses: ivanamat/defectdojo-import-scan@v1
         with:
           token: ${{ secrets.DEFECTDOJO_API_KEY }}
           defectdojo_url: ${{ secrets.DEFECTDOJO_URL }}
-          file: scan-results/*.sarif
+          file: scan-results/javascript.sarif
+          scan_type: SARIF
+          engagement: ${{ secrets.DEFECTDOJO_ENGAGEMENT_ID }}
+          close_old_findings: true
+
+      - name: Import CodeQL Results (TypeScript)
+        if: hashFiles('scan-results/typescript.sarif') != ''
+        continue-on-error: true
+        uses: ivanamat/defectdojo-import-scan@v1
+        with:
+          token: ${{ secrets.DEFECTDOJO_API_KEY }}
+          defectdojo_url: ${{ secrets.DEFECTDOJO_URL }}
+          file: scan-results/typescript.sarif
           scan_type: SARIF
           engagement: ${{ secrets.DEFECTDOJO_ENGAGEMENT_ID }}
           close_old_findings: true
