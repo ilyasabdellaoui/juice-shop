@@ -172,7 +172,7 @@ jobs:
             -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }}
             -Dsonar.sources=.
             -Dsonar.sourceEncoding=UTF-8
-            -Dsonar.externalIssuesReportPaths=scan-results/snyk/snyk.sarif 
+            -Dsonar.sarifReportPaths=scan-results/snyk/snyk.sarif 
             
       # Check Quality Gate
       - name: Check Quality Gate
