@@ -60,6 +60,10 @@ jobs:
         with:
           category: "/language:javascript"
           output: "codeql-results"
+      - name: Copy CodeQL SARIF file
+        run: |
+          mkdir -p sarif-files
+          cp codeql-results/*.sarif sarif-files/
 
       # SCA: Snyk Vulnerability Scanning
       - uses: actions/checkout@master
@@ -76,6 +80,9 @@ jobs:
         uses: github/codeql-action/upload-sarif@v2
         with:
           sarif_file: snyk.sarif
+      - name: Copy Snyk SARIF file
+        run: |
+          cp snyk.sarif sarif-files/
 
       # DAST: OWASP ZAP Scan
       - name: Run OWASP ZAP Scan
@@ -98,16 +105,11 @@ jobs:
         continue-on-error: true
 
       # Upload Scan Results
-      - name: Upload Scan Results
-        if: always()  # Always upload results
+      - name: Upload SARIF files
         uses: actions/upload-artifact@v4
         with:
           name: security-scan-results
-          path: |
-            snyk.sarif
-            codeql-results/**
-            zap-results.json
-            *.html
+          path: sarif-files/*.sarif
 
   vulnerability_management:
     name: Vulnerability Management
@@ -123,13 +125,13 @@ jobs:
           path: scan-results
 
       - name: Import CodeQL Results
-        if: hashFiles('scan-results/codeql-results/javascript.sarif') != ''
+        if: hashFiles('scan-results/javascript.sarif') != ''
         continue-on-error: true
         uses: ivanamat/defectdojo-import-scan@v1
         with:
           token: ${{ secrets.DEFECTDOJO_API_KEY }}
           defectdojo_url: ${{ secrets.DEFECTDOJO_URL }}
-          file: scan-results/codeql-results/javascript.sarif
+          file: scan-results/javascript.sarif
           scan_type: SARIF
           engagement: ${{ secrets.DEFECTDOJO_ENGAGEMENT_ID }}
           close_old_findings: true
@@ -164,7 +166,7 @@ jobs:
           echo "Scan Results Summary:"
           echo "===================="
           
-          if [[ -f scan-results/codeql-results/javascript.sarif ]]; then
+          if [[ -f scan-results/javascript.sarif ]]; then
             echo "✅ CodeQL results file found and processed"
           else
             echo "⚠️ CodeQL results file not found"
@@ -181,7 +183,13 @@ jobs:
           else
             echo "⚠️ ZAP results file not found"
           fi
-            
+
+      - name: List Downloaded Files
+        if: always()
+        run: |
+          echo "Contents of scan-results directory:"
+          ls -la scan-results/
+          
   redeploy:
     name: Redeploy Juice Shop
     runs-on: ubuntu-latest
