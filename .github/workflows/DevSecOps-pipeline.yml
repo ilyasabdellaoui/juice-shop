@@ -59,6 +59,11 @@ jobs:
           output: "codeql-results"
 
       # SCA: Snyk Vulnerability Scanning
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
       - name: Run Snyk to check for vulnerabilities
         uses: snyk/actions/node@master
         env:
@@ -111,97 +116,91 @@ jobs:
           name: security-scan-results
           path: scan-results
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.x'
-
-      - name: Install DefectDojo API Client
+      # Create engagement first
+      - name: Create DefectDojo Engagement
+        id: create-engagement
         run: |
-          pip install defectdojo_api
-
-      - name: Create DefectDojo Engagement and Upload Scans
-        env:
-          DEFECTDOJO_URL: ${{ secrets.DEFECTDOJO_URL }}
-          DEFECTDOJO_API_KEY: ${{ secrets.DEFECTDOJO_API_KEY }}
-          DEFECTDOJO_PRODUCT_ID: ${{ secrets.DEFECTDOJO_PRODUCT_ID }}
-        run: |
-          export TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-          python3 <<EOF
-          import os
-          from defectdojo_api import defectdojo
-          from datetime import datetime
-          import requests
-          from urllib3.exceptions import InsecureRequestWarning
-          requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
-
-          # Make sure URL is properly formatted
-          defectdojo_url = os.environ['DEFECTDOJO_URL'].rstrip('/')
-          if not defectdojo_url.startswith(('http://', 'https://')):
-              defectdojo_url = 'https://' + defectdojo_url
-
-          user = 'admin'
-          # Initialize DefectDojo API client
-          dd = defectdojo.DefectDojoAPI(
-              defectdojo_url,
-              os.environ['DEFECTDOJO_API_KEY'],
-              user, 
-              debug=False
-          )
-
-          # Get product ID from environment
-          product_id = int(os.environ['DEFECTDOJO_PRODUCT_ID'])
+          TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+          TODAY=$(date +%Y-%m-%d)
           
-          try:
-              # Create engagement
-              engagement_data = {
-                  'product': product_id,
-                  'name': f'Automated Scan {datetime.now().strftime("%Y%m%d_%H%M%S")}',
-                  'target_start': datetime.now().strftime('%Y-%m-%d'),
-                  'target_end': datetime.now().strftime('%Y-%m-%d'),
-                  'status': 'In Progress',
-                  'deduplication_on_engagement': True
-              }
-              
-              # Create engagement using the API
-              engagement = dd.create('engagements', data=engagement_data)
-              print(f"Created engagement with ID: {engagement['id']}")
-              
-              # Function to upload scan results
-              def safe_upload(file_path, scan_type, scan_type_id):
-                  try:
-                      with open(file_path, 'rb') as f:
-                          files = {'file': f}
-                          data = {
-                              'engagement': engagement['id'],
-                              'scan_type': scan_type,
-                              'scan_date': datetime.now().strftime('%Y-%m-%d'),
-                              'minimum_severity': 'Info'
-                          }
-                          result = dd.upload_scan(data, files)
-                          print(f"Successfully uploaded {scan_type}")
-                          return result
-                  except FileNotFoundError:
-                      print(f"Warning: File not found: {file_path}")
-                  except Exception as e:
-                      print(f"Error uploading {scan_type}: {str(e)}")
-                  return None
+          # Create engagement using DefectDojo API
+          ENGAGEMENT_RESPONSE=$(curl -X POST \
+            -H "Authorization: Token ${{ secrets.DEFECTDOJO_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            "${{ secrets.DEFECTDOJO_URL }}/api/v2/engagements/" \
+            -d "{
+              \"product\": ${{ secrets.DEFECTDOJO_PRODUCT_ID }},
+              \"name\": \"Automated Scan ${TIMESTAMP}\",
+              \"target_start\": \"${TODAY}\",
+              \"target_end\": \"${TODAY}\",
+              \"status\": \"In Progress\",
+              \"deduplication_on_engagement\": true
+            }")
+          
+          # Extract engagement ID
+          ENGAGEMENT_ID=$(echo $ENGAGEMENT_RESPONSE | jq -r '.id')
+          echo "engagement_id=${ENGAGEMENT_ID}" >> "$GITHUB_OUTPUT"
+          echo "Created engagement with ID: ${ENGAGEMENT_ID}"
 
-              # Upload scan results
-              safe_upload('scan-results/codeql-results/javascript.sarif', 'SARIF', 1)
-              safe_upload('scan-results/snyk-results.json', 'Snyk Scan', 2)
-              safe_upload('scan-results/zap-results.json', 'ZAP Scan', 3)
+      # Import scan results using the newly created engagement
+      - name: Import CodeQL Results
+        uses: ivanamat/defectdojo-import-scan@v1
+        with:
+          token: ${{ secrets.DEFECTDOJO_API_KEY }}
+          defectdojo_url: ${{ secrets.DEFECTDOJO_URL }}
+          file: scan-results/codeql-results/javascript.sarif
+          scan_type: SARIF
+          engagement: ${{ steps.create-engagement.outputs.engagement_id }}
+          
+      - name: Import Snyk Results
+        uses: ivanamat/defectdojo-import-scan@v1
+        with:
+          token: ${{ secrets.DEFECTDOJO_API_KEY }}
+          defectdojo_url: ${{ secrets.DEFECTDOJO_URL }}
+          file: scan-results/snyk-results.json
+          scan_type: Snyk Scan
+          engagement: ${{ steps.create-engagement.outputs.engagement_id }}
+          
+      - name: Import ZAP Results
+        uses: ivanamat/defectdojo-import-scan@v1
+        with:
+          token: ${{ secrets.DEFECTDOJO_API_KEY }}
+          defectdojo_url: ${{ secrets.DEFECTDOJO_URL }}
+          file: scan-results/zap-results.json
+          scan_type: ZAP Scan
+          engagement: ${{ steps.create-engagement.outputs.engagement_id }}
 
-              # Close the engagement
-              engagement_data['status'] = 'Completed'
-              dd.update('engagements', engagement['id'], data=engagement_data)
-              print("Successfully closed engagement")
-              
-          except Exception as e:
-              print(f"Error in DefectDojo integration: {str(e)}")
-              exit(1)
-          EOF
+      # Close the engagement
+      - name: Close Engagement
+        if: always()
+        run: |
+          curl -X PATCH \
+            -H "Authorization: Token ${{ secrets.DEFECTDOJO_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            "${{ secrets.DEFECTDOJO_URL }}/api/v2/engagements/${{ steps.create-engagement.outputs.engagement_id }}/" \
+            -d "{\"status\": \"Completed\"}"
 
+      - name: Check Import Results
+        if: always()
+        run: |
+          if [[ -f scan-results/codeql-results/javascript.sarif ]]; then
+            echo "CodeQL results file exists"
+          else
+            echo "Warning: CodeQL results file not found"
+          fi
+          
+          if [[ -f scan-results/snyk-results.json ]]; then
+            echo "Snyk results file exists"
+          else
+            echo "Warning: Snyk results file not found"
+          fi
+          
+          if [[ -f scan-results/zap-results.json ]]; then
+            echo "ZAP results file exists"
+          else
+            echo "Warning: ZAP results file not found"
+          fi
+            
   redeploy:
     name: Redeploy Juice Shop
     runs-on: ubuntu-latest
