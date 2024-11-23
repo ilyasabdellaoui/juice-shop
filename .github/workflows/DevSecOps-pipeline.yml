@@ -137,12 +137,12 @@ jobs:
           name: snyk-scan-results
           path: scan-results
 
-      # Download ZAP Results
-      - name: Download ZAP Results
-        uses: actions/download-artifact@v4
-        with:
-          name: zap-scan-results
-          path: scan-results
+      # # Download ZAP Results
+      # - name: Download ZAP Results
+      #   uses: actions/download-artifact@v4
+      #   with:
+      #     name: zap-scan-results
+      #     path: scan-results
 
       # List Downloaded Files
       - name: List Downloaded Files
@@ -176,18 +176,18 @@ jobs:
           engagement: ${{ secrets.DEFECTDOJO_ENGAGEMENT_ID }}
           close_old_findings: true
           
-      # Import ZAP Results
-      - name: Import ZAP Results
-        if: hashFiles('scan-results/zap-results.json') != ''
-        continue-on-error: true
-        uses: ivanamat/defectdojo-import-scan@v1
-        with:
-          token: ${{ secrets.DEFECTDOJO_API_KEY }}
-          defectdojo_url: ${{ secrets.DEFECTDOJO_URL }}
-          file: scan-results/zap-results.json
-          scan_type: ZAP Scan
-          engagement: ${{ secrets.DEFECTDOJO_ENGAGEMENT_ID }}
-          close_old_findings: true
+      # # Import ZAP Results
+      # - name: Import ZAP Results
+      #   if: hashFiles('scan-results/zap-results.json') != ''
+      #   continue-on-error: true
+      #   uses: ivanamat/defectdojo-import-scan@v1
+      #   with:
+      #     token: ${{ secrets.DEFECTDOJO_API_KEY }}
+      #     defectdojo_url: ${{ secrets.DEFECTDOJO_URL }}
+      #     file: scan-results/zap-results.json
+      #     scan_type: ZAP Scan
+      #     engagement: ${{ secrets.DEFECTDOJO_ENGAGEMENT_ID }}
+      #     close_old_findings: true
 
       # Check Import Results
       - name: Check Import Results
