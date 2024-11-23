@@ -59,16 +59,12 @@ jobs:
           output: "codeql-results"
 
       # SCA: Snyk Vulnerability Scanning
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
       - name: Run Snyk to check for vulnerabilities
-        uses: snyk/actions/setup@master
+        uses: snyk/actions/node@master
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
-          command: snyk test --json > snyk-results.json
+          args: test --json-file-output=snyk-results.json
 
       # DAST: OWASP ZAP Scan
       - name: Run OWASP ZAP Scan
@@ -87,17 +83,8 @@ jobs:
             config.api.addrs.addr.name=.* ;
             config.api.addrs.addr.regex=true"
           allow_issue_writing: true
-          fail_action: false  # Don't fail the build on vulnerabilities
-        continue-on-error: true  # Continue pipeline even if ZAP scan fails
-
-      - name: Archive ZAP Results
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: zap-scan-results
-          path: |
-            zap-results.json
-            *.html
+          fail_action: false
+        continue-on-error: true
 
       # Upload Scan Results
       - name: Upload Scan Results
@@ -108,6 +95,8 @@ jobs:
           path: |
             snyk-results.json
             codeql-results/**
+            zap-results.json
+            *.html
 
   vulnerability_management:
     name: Vulnerability Management
@@ -146,10 +135,15 @@ jobs:
           from urllib3.exceptions import InsecureRequestWarning
           requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
+          # Make sure URL is properly formatted
+          defectdojo_url = os.environ['DEFECTDOJO_URL'].rstrip('/')
+          if not defectdojo_url.startswith(('http://', 'https://')):
+              defectdojo_url = 'https://' + defectdojo_url
+
           user = 'admin'
           # Initialize DefectDojo API client
           dd = defectdojo.DefectDojoAPI(
-              os.environ['DEFECTDOJO_URL'],
+              defectdojo_url,
               os.environ['DEFECTDOJO_API_KEY'],
               user, 
               debug=False
