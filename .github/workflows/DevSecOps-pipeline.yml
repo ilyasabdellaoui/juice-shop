@@ -42,16 +42,6 @@ jobs:
         with:
           node-version: '20'
 
-      # Install dependencies (if package.json exists)
-      - name: Install Dependencies
-        run: |
-          if [ -f package.json ]; then
-            npm install
-          else
-            echo "No package.json found"
-            exit 1
-          fi
-
       # SAST: CodeQL Security Analysis
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v2
@@ -73,6 +63,8 @@ jobs:
 
       # SCA: Snyk Vulnerability Scanning
       - uses: actions/checkout@master
+      - name: Install Dependencies
+        run: npm install
       - name: Run Snyk to check for vulnerabilities
         uses: snyk/actions/node@master
         continue-on-error: true
