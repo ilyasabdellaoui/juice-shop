@@ -124,13 +124,41 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Download scan results
-      - name: Download Scan Results
+      # Download scan results separately to ensure proper file structure
+      - name: Download CodeQL Results
         uses: actions/download-artifact@v4
         with:
-          pattern: "*-scan-results"
-          path: scan-results
-          merge-multiple: true
+          name: codeql-scan-results
+          path: scan-results/codeql
+
+      - name: Download Snyk Results
+        uses: actions/download-artifact@v4
+        with:
+          name: snyk-scan-results
+          path: scan-results/snyk
+
+      - name: Download ZAP Results
+        uses: actions/download-artifact@v4
+        with:
+          name: zap-scan-results
+          path: scan-results/zap
+
+      # Debug step to check files
+      - name: List Downloaded Files
+        run: |
+          echo "Scan Results Directory Structure:"
+          ls -R scan-results/
+
+      # Convert Snyk SARIF to SonarQube format
+      - name: Process SARIF Files
+        run: |
+          # Ensure reports directory exists
+          mkdir -p reports
+          
+          # Combine SARIF files if they exist
+          if [ -f scan-results/snyk/snyk.sarif ] && [ -f scan-results/codeql/*.sarif ]; then
+            jq -s 'reduce .[] as $item ({runs: [], version: "2.1.0", $schema: "http://json.schemastore.org/sarif-2.1.0-rtm.5"} | .; .runs += $item.runs)' scan-results/snyk/snyk.sarif scan-results/codeql/*.sarif > reports/combined.sarif
+          fi
 
       # SonarCloud Analysis
       - name: SonarCloud Scan
@@ -143,8 +171,9 @@ jobs:
             -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }}
             -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }}
             -Dsonar.sources=.
+            -Dsonar.sourceEncoding=UTF-8
             -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
-            -Dsonar.externalIssuesReportPaths=scan-results/snyk.sarif,scan-results/javascript.sarif
+            -Dsonar.externalIssuesReportPaths=reports/combined.sarif
             
       # Check Quality Gate
       - name: Check Quality Gate
@@ -165,9 +194,9 @@ jobs:
           echo "📊 Results uploaded to SonarCloud"
           echo "🔍 Quality Gate Status: ${{ steps.sonarqube-quality-gate-check.outputs.quality-gate-status }}"
           
-          echo "Processed Scan Files:"
-          ls -la scan-results/
-  
+          echo "Final Files Structure:"
+          ls -R reports/
+          
   redeploy:
     name: Redeploy Juice Shop
     runs-on: ubuntu-latest
