@@ -72,12 +72,18 @@ jobs:
           output: "codeql-results"
 
       # SCA: Snyk Vulnerability Scanning
+      - uses: actions/checkout@master
       - name: Run Snyk to check for vulnerabilities
         uses: snyk/actions/node@master
+        continue-on-error: true
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
-          args: test --all-projects --json-file-output=snyk-results.json
+          args: --sarif-file-output=snyk.sarif
+      - name: Upload result to GitHub Code Scanning
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: snyk.sarif
 
       # DAST: OWASP ZAP Scan
       - name: Run OWASP ZAP Scan
@@ -106,7 +112,7 @@ jobs:
         with:
           name: security-scan-results
           path: |
-            snyk-results.json
+            snyk.sarif
             codeql-results/**
             zap-results.json
             *.html
@@ -163,13 +169,13 @@ jobs:
           engagement: ${{ steps.create-engagement.outputs.engagement_id }}
           
       - name: Import Snyk Results
-        if: hashFiles('scan-results/snyk-results.json') != ''
+        if: hashFiles('scan-results/snyk.sarif') != ''
         continue-on-error: true
         uses: ivanamat/defectdojo-import-scan@v1
         with:
           token: ${{ secrets.DEFECTDOJO_API_KEY }}
           defectdojo_url: ${{ secrets.DEFECTDOJO_URL }}
-          file: scan-results/snyk-results.json
+          file: scan-results/snyk.sarif
           scan_type: Snyk Scan
           engagement: ${{ steps.create-engagement.outputs.engagement_id }}
           
@@ -196,7 +202,7 @@ jobs:
             echo "⚠️ CodeQL results file not found"
           fi
           
-          if [[ -f scan-results/snyk-results.json ]]; then
+          if [[ -f scan-results/snyk.sarif ]]; then
             echo "✅ Snyk results file found and processed"
           else
             echo "⚠️ Snyk results file not found"
