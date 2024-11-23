@@ -137,11 +137,11 @@ jobs:
           name: snyk-scan-results
           path: scan-results/snyk
 
-      - name: Download ZAP Results
-        uses: actions/download-artifact@v4
-        with:
-          name: zap-scan-results
-          path: scan-results/zap
+      # - name: Download ZAP Results
+      #   uses: actions/download-artifact@v4
+      #   with:
+      #     name: zap-scan-results
+      #     path: scan-results/zap
 
       # Debug step to check files
       - name: List Downloaded Files
