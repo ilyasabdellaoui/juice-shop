@@ -69,6 +69,8 @@ jobs:
       - uses: actions/checkout@master
       - name: Install Dependencies
         run: npm install
+      - name: Create sarif-files directory
+        run: mkdir -p sarif-files
       - name: Run Snyk to check for vulnerabilities
         uses: snyk/actions/node@master
         continue-on-error: true
@@ -80,10 +82,7 @@ jobs:
         uses: github/codeql-action/upload-sarif@v2
         with:
           sarif_file: snyk.sarif
-      - name: Copy Snyk SARIF file
-        run: |
-          cp snyk.sarif sarif-files/
-
+          
       # DAST: OWASP ZAP Scan
       - name: Run OWASP ZAP Scan
         uses: zaproxy/action-full-scan@v0.7.0
