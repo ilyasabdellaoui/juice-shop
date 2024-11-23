@@ -122,33 +122,6 @@ jobs:
           name: security-scan-results
           path: scan-results
 
-      # Create engagement first
-      - name: Create DefectDojo Engagement
-        id: create-engagement
-        run: |
-          TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-          TODAY=$(date +%Y-%m-%d)
-          
-          # Create engagement using DefectDojo API
-          ENGAGEMENT_RESPONSE=$(curl -X POST \
-            -H "Authorization: Token ${{ secrets.DEFECTDOJO_API_KEY }}" \
-            -H "Content-Type: application/json" \
-            "${{ secrets.DEFECTDOJO_URL }}/api/v2/engagements/" \
-            -d "{
-              \"product\": ${{ secrets.DEFECTDOJO_PRODUCT_ID }},
-              \"name\": \"Automated Scan ${TIMESTAMP}\",
-              \"target_start\": \"${TODAY}\",
-              \"target_end\": \"${TODAY}\",
-              \"status\": \"In Progress\",
-              \"deduplication_on_engagement\": true
-            }")
-          
-          # Extract engagement ID
-          ENGAGEMENT_ID=$(echo $ENGAGEMENT_RESPONSE | jq -r '.id')
-          echo "engagement_id=${ENGAGEMENT_ID}" >> "$GITHUB_OUTPUT"
-          echo "Created engagement with ID: ${ENGAGEMENT_ID}"
-
-      # Import scan results using the newly created engagement
       - name: Import CodeQL Results
         if: hashFiles('scan-results/codeql-results/javascript.sarif') != ''
         continue-on-error: true
@@ -158,7 +131,8 @@ jobs:
           defectdojo_url: ${{ secrets.DEFECTDOJO_URL }}
           file: scan-results/codeql-results/javascript.sarif
           scan_type: SARIF
-          engagement: ${{ steps.create-engagement.outputs.engagement_id }}
+          engagement: ${{ secrets.DEFECTDOJO_ENGAGEMENT_ID }}
+          close_old_findings: true
           
       - name: Import Snyk Results
         if: hashFiles('scan-results/snyk.sarif') != ''
@@ -169,7 +143,8 @@ jobs:
           defectdojo_url: ${{ secrets.DEFECTDOJO_URL }}
           file: scan-results/snyk.sarif
           scan_type: Snyk Scan
-          engagement: ${{ steps.create-engagement.outputs.engagement_id }}
+          engagement: ${{ secrets.DEFECTDOJO_ENGAGEMENT_ID }}
+          close_old_findings: true
           
       - name: Import ZAP Results
         if: hashFiles('scan-results/zap-results.json') != ''
@@ -180,7 +155,8 @@ jobs:
           defectdojo_url: ${{ secrets.DEFECTDOJO_URL }}
           file: scan-results/zap-results.json
           scan_type: ZAP Scan
-          engagement: ${{ steps.create-engagement.outputs.engagement_id }}
+          engagement: ${{ secrets.DEFECTDOJO_ENGAGEMENT_ID }}
+          close_old_findings: true
 
       - name: Check Import Results
         if: always()
