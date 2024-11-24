@@ -1,4 +1,5 @@
 # DevSecOps CI/CD Pipeline for OWASP Juice Shop
+[![DevSecOps CI/CD Pipeline for OWASP Juice Shop](https://github.com/ilyasabdellaoui/juice-shop/actions/workflows/DevSecOps-pipeline.yml/badge.svg?branch=master)](https://github.com/ilyasabdellaoui/juice-shop/actions/workflows/DevSecOps-pipeline.yml)
 
 This fork demonstrates a **DevSecOps CI/CD pipeline** for the [OWASP Juice Shop](https://github.com/juice-shop/juice-shop), a vulnerable web application ideal for security training. The pipeline is implemented using GitHub Actions and integrates **security testing**, **vulnerability management**, and **automated redeployment**.
 
@@ -27,7 +28,7 @@ This fork demonstrates a **DevSecOps CI/CD pipeline** for the [OWASP Juice Shop]
   ![SonarCloud Analysis Screenshot](DevSecOps-Static-Outputs/sonarcloud-screenshot.png)
 
 - **OWASP ZAP Report**:  
-  ![OWASP ZAP HTML Report](DevSecOps-Static-Outputs/report_html.html)
+  ![OWASP ZAP HTML Report](DevSecOps-Static-Outputs/zap_report.png)
 
 ---
 
