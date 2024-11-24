@@ -24,7 +24,7 @@ This fork demonstrates a **DevSecOps CI/CD pipeline** for the [OWASP Juice Shop]
 ---
 
 ## Screenshots
-- **SonarCloud Analysis**:  
+- **SonarCloud Analysis**: [SonardCloud Dashboard](https://sonarcloud.io/summary/new_code?id=ilyasabdellaoui_owasp-juice-shop)
   ![SonarCloud Analysis Screenshot](DevSecOps-Static-Outputs/sonarcloud-screenshot.png)
 
 - **OWASP ZAP Report**:  
