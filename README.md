@@ -27,7 +27,7 @@ This fork demonstrates a **DevSecOps CI/CD pipeline** for the [OWASP Juice Shop]
   ![SonarCloud Analysis Screenshot](DevSecOps-Static-Outputs/sonarcloud-screenshot.png)
 
 - **OWASP ZAP Report**:  
-  ![OWASP ZAP HTML Report](DevSecOps-Static-Outputs/zap-report.html)
+  ![OWASP ZAP HTML Report](DevSecOps-Static-Outputs/report_html.html)
 
 ---
 
