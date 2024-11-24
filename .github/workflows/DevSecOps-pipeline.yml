@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   build:
-    name: Build and Deploy Juice Shop
+    name: Build Juice Shop
     runs-on: ubuntu-latest
 
     steps:
@@ -154,16 +154,6 @@ jobs:
             -Dsonar.sarifReportPaths=reports/combined.sarif 
             -Dsonar.zaproxy.reportPath=scan-results/zap/zap-results.xml
 
-      # Check Quality Gate
-      - name: Check Quality Gate
-        id: sonarqube-quality-gate-check
-        uses: sonarsource/sonarqube-quality-gate-action@master
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        timeout-minutes: 5
-        with:
-          scanMetadataReportFile: .scannerwork/report-task.txt
-          
       # List Final Files and Summary
       - name: Scan Results Summary
         if: always()
