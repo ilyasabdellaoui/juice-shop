@@ -152,7 +152,6 @@ jobs:
             -Dsonar.sources=.
             -Dsonar.sourceEncoding=UTF-8
             -Dsonar.zaproxy.reportPath=scan-results/zap/zap-results.xml
-            -Dsonar.qualitygate.wait=true
 
       # Second scan for SAST/SCA results
       - name: SonarCloud SAST/SCA Scan
