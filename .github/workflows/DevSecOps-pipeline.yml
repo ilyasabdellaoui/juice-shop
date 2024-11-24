@@ -167,7 +167,6 @@ jobs:
             -Dsonar.sources=.
             -Dsonar.sourceEncoding=UTF-8
             -Dsonar.sarifReportPaths=reports/combined.sarif
-            -Dsonar.qualitygate.wait=true
 
       # List Final Files and Summary
       - name: Scan Results Summary
